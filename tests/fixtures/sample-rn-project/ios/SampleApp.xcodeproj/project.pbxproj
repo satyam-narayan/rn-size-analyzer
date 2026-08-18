@@ -1,0 +1,31 @@
+// !$*UTF8*$!
+{
+  archiveVersion = 1;
+  objects = {
+    13B07F941A680F5B00A75B9A /* Debug */ = {
+      isa = XCBuildConfiguration;
+      buildSettings = {
+        CODE_SIGN_IDENTITY = "iPhone Developer";
+        DEVELOPMENT_TEAM = ABCDE12345;
+        IPHONEOS_DEPLOYMENT_TARGET = 15.1;
+        PRODUCT_BUNDLE_IDENTIFIER = com.sample.app;
+        ARCHS = "arm64";
+        name = Debug;
+      };
+      name = Debug;
+    };
+    13B07F951A680F5B00A75B9A /* Release */ = {
+      isa = XCBuildConfiguration;
+      buildSettings = {
+        CODE_SIGN_IDENTITY = "iPhone Developer";
+        DEVELOPMENT_TEAM = ABCDE12345;
+        IPHONEOS_DEPLOYMENT_TARGET = 15.1;
+        PRODUCT_BUNDLE_IDENTIFIER = com.sample.app;
+        ARCHS = "arm64";
+        name = Release;
+      };
+      name = Release;
+    };
+  };
+  rootObject = 83CBB9F71A601CBA00E9B192 /* Project object */;
+}

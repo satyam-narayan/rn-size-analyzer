@@ -1,0 +1,20 @@
+# Resolve react_native_pods.rb with node to allow for hoisting
+platform :ios, '15.1'
+
+prepare_react_native_project!
+
+linkage = ENV['USE_FRAMEWORKS']
+if linkage != nil
+  Pod::UI.puts "Configuring Pod with #{linkage}ally linked Frameworks".green
+  use_frameworks! :linkage => linkage.to_sym
+end
+
+target 'SampleApp' do
+  config = use_native_modules!
+
+  use_react_native!(
+    :path => config[:reactNativePath],
+    :hermes_enabled => true,
+    :app_path => "#{Pod::Config.instance.installation_root}/.."
+  )
+end

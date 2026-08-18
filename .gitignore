@@ -1,0 +1,10 @@
+node_modules/
+dist/
+dist-test/
+coverage/
+*.log
+.DS_Store
+*.tgz
+rn-size-report/
+rn-size-report-*/
+.rn-size-analyzer-baseline.json

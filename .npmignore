@@ -1,0 +1,8 @@
+node_modules
+src
+tests
+tsconfig.json
+.github
+*.tsbuildinfo
+rn-size-report
+rn-size-report-*

@@ -1,0 +1,14 @@
+{
+  "android": {
+    "maxIncrease": "2MB",
+    "maxSize": "80MB"
+  },
+  "ios": {
+    "maxIncrease": "3MB"
+  },
+  "failOn": "error",
+  "ignore": [],
+  "rules": {
+    "perf-console-log": { "enabled": true, "severity": "info" }
+  }
+}

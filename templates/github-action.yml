@@ -1,0 +1,22 @@
+name: rn-size-check
+on:
+  pull_request:
+  push:
+    branches: [main]
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Analyze React Native size
+        run: npx rn-size-analyzer analyze --format json --out rn-size-report
+      - name: Check thresholds
+        run: npx rn-size-analyzer check --json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: rn-size-report
+          path: rn-size-report

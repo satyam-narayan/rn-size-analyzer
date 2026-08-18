@@ -1,0 +1,22 @@
+PODS:
+  - hermes-engine (0.76.5)
+  - React-Core (0.76.5)
+  - react-native-video (6.8.0):
+    - React-Core
+  - RNReanimated (3.16.1):
+    - React-Core
+  - FirebaseCore (11.5.0)
+
+DEPENDENCIES:
+  - hermes-engine
+  - "React-Core"
+  - react-native-video
+  - RNReanimated
+  - FirebaseCore
+
+SPEC CHECKSUMS:
+  hermes-engine: abc123
+  React-Core: abc123
+
+PODFILE CHECKSUM: abc123
+COCOAPODS: 1.15.2

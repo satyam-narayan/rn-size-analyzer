@@ -1,0 +1,10 @@
+buildscript {
+    ext {
+        compileSdkVersion = 35
+        targetSdkVersion = 34
+        minSdkVersion = 24
+    }
+    dependencies {
+        classpath("com.android.tools.build:gradle:8.6.0")
+    }
+}
