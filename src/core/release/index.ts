@@ -22,11 +22,15 @@ export function analyzeRelease(input: {
   ios: IosAnalysis;
   security: SecurityAnalysis;
   hermesEnabled?: boolean;
+  platform?: 'android' | 'ios' | 'all';
 }): ReleaseAnalysis {
+  const scope = input.platform ?? 'all';
+  const includeAndroid = scope !== 'ios';
+  const includeIos = scope !== 'android';
   const android: ChecklistItem[] = [];
   const ios: ChecklistItem[] = [];
 
-  if (input.android.detected) {
+  if (includeAndroid && input.android.detected) {
     android.push(
       item(
         'android-project',
@@ -84,13 +88,13 @@ export function analyzeRelease(input: {
         'android',
       ),
     );
-  } else {
+  } else if (includeAndroid) {
     android.push(
       item('android-missing', 'Android project', 'unknown', input.android.missingReason ?? 'Not detected.', 'android'),
     );
   }
 
-  if (input.ios.detected) {
+  if (includeIos && input.ios.detected) {
     ios.push(item('ios-project', 'iOS project', 'ready', 'iOS project/Podfile detected.', 'ios'));
     ios.push(
       item(
@@ -125,12 +129,12 @@ export function analyzeRelease(input: {
         'ios',
       ),
     );
-  } else {
+  } else if (includeIos) {
     ios.push(item('ios-missing', 'iOS project', 'unknown', input.ios.missingReason ?? 'Not detected.', 'ios'));
   }
 
   const staging = input.security.findings.filter((f) => f.ruleId === 'sec-staging-url' || f.ruleId === 'sec-localhost');
-  if (staging.length > 0) {
+  if (staging.length > 0 && includeAndroid) {
     android.push(
       item(
         'android-staging',
@@ -140,6 +144,8 @@ export function analyzeRelease(input: {
         'shared',
       ),
     );
+  }
+  if (staging.length > 0 && includeIos) {
     ios.push(
       item(
         'ios-staging',

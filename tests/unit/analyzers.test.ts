@@ -13,8 +13,10 @@ import { parseIosProject, parsePodfileLock } from '../../src/core/ios/project';
 import { analyzeDependencies, guessPackageForNativeLib } from '../../src/core/dependencies';
 import { analyzeAssets } from '../../src/core/assets';
 import { analyzeUnusedJs } from '../../src/core/js-unused';
+import { analyzeSecurity } from '../../src/core/security';
+import { analyzePerformance } from '../../src/core/performance';
 import { compareArtifacts } from '../../src/core/comparison';
-import { analyzeProject } from '../../src/core/analyzer';
+import { analyzeProject, analyzeAndroidOnly, analyzeIosOnly } from '../../src/core/analyzer';
 import { parseSize, formatBytes } from '../../src/utils/size';
 import { listZipEntries } from '../../src/utils/zip';
 import { renderHtml } from '../../src/reporters/html';
@@ -159,6 +161,63 @@ describe('ios analyzer', () => {
   });
 });
 
+describe('security analyzer', () => {
+  it('does not flag Firebase client keys or Apple plist DTD URLs', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'rnsa-sec-'));
+    mkdirSync(join(dir, 'android', 'app'), { recursive: true });
+    mkdirSync(join(dir, 'ios', 'SampleApp'), { recursive: true });
+    writeFileSync(
+      join(dir, 'android', 'app', 'google-services.json'),
+      JSON.stringify({
+        client: [{ api_key: [{ current_key: `AIza${'F'.repeat(35)}` }] }],
+      }),
+    );
+    writeFileSync(
+      join(dir, 'ios', 'GoogleService-Info.plist'),
+      `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+  <key>API_KEY</key><string>AIza${'I'.repeat(35)}</string>
+</dict></plist>
+`,
+    );
+    writeFileSync(
+      join(dir, 'ios', 'SampleApp', 'Info.plist'),
+      `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict><key>CFBundleName</key><string>Sample</string></dict></plist>
+`,
+    );
+    const result = analyzeSecurity(dir);
+    assert.equal(
+      result.findings.some((item) => item.file.includes('google-services.json')),
+      false,
+    );
+    assert.equal(
+      result.findings.some((item) => item.file.includes('GoogleService-Info.plist')),
+      false,
+    );
+    assert.equal(
+      result.findings.some(
+        (item) => item.file.includes('Info.plist') && item.ruleId === 'sec-http-url',
+      ),
+      false,
+    );
+  });
+
+  it('still flags Google API keys and http URLs in application source', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'rnsa-sec-src-'));
+    mkdirSync(join(dir, 'src'), { recursive: true });
+    writeFileSync(
+      join(dir, 'src', 'config.ts'),
+      `export const KEY = 'AIza${'S'.repeat(35)}';\nexport const API = 'http://api.example.com/v1';\n`,
+    );
+    const result = analyzeSecurity(dir);
+    assert.ok(result.findings.some((item) => item.ruleId === 'sec-google-api-key'));
+    assert.ok(result.findings.some((item) => item.ruleId === 'sec-http-url'));
+  });
+});
+
 describe('dependency analyzer', () => {
   it('reads direct dependencies from package.json', () => {
     const deps = analyzeDependencies(FIXTURE, undefined);
@@ -212,6 +271,138 @@ describe('asset analyzer', () => {
     assert.ok(used?.usedIn.some((loc) => loc.includes('src/App.tsx')));
     assert.equal(orphan?.usage, 'unused');
     assert.equal(orphan?.usedIn.length, 0);
+  });
+});
+
+describe('performance analyzer', () => {
+  it('treats shared FlatList perf spreads as valid tuning', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'rnsa-perf-'));
+    mkdirSync(join(dir, 'src'), { recursive: true });
+    writeFileSync(
+      join(dir, 'src', 'listPerf.ts'),
+      `export const sharedListSettings = {
+  windowSize: 10,
+  maxToRenderPerBatch: 10,
+  updateCellsBatchingPeriod: 50,
+  initialNumToRender: 10,
+  removeClippedSubviews: true,
+};
+`,
+    );
+    writeFileSync(
+      join(dir, 'src', 'ImportedList.tsx'),
+      `import React from 'react';
+import { FlatList, Text } from 'react-native';
+import { sharedListSettings } from './listPerf';
+
+export function ImportedList({ data }: { data: Array<{ id: string }> }) {
+  return (
+    <FlatList
+      data={data}
+      keyExtractor={(item) => item.id}
+      renderItem={({ item }) => <Text>{item.id}</Text>}
+      {...sharedListSettings}
+    />
+  );
+}
+`,
+    );
+    writeFileSync(
+      join(dir, 'src', 'LocalList.tsx'),
+      `import React from 'react';
+import { FlatList, Text } from 'react-native';
+
+const LIST_PERF_PROPS = {
+  windowSize: 8,
+  removeClippedSubviews: true,
+};
+
+export function LocalList({ data }: { data: Array<{ id: string }> }) {
+  return (
+    <FlatList
+      data={data}
+      keyExtractor={(item) => item.id}
+      renderItem={({ item }) => <Text>{item.id}</Text>}
+      {...LIST_PERF_PROPS}
+    />
+  );
+}
+`,
+    );
+    writeFileSync(
+      join(dir, 'src', 'AliasedList.tsx'),
+      `import React from 'react';
+import { FlatList, Text } from 'react-native';
+import { paginationConfig } from '@/helpers/list';
+
+export function AliasedList({ data }: { data: Array<{ id: string }> }) {
+  return (
+    <FlatList
+      data={data}
+      keyExtractor={(item) => item.id}
+      renderItem={({ item }) => <Text>{item.id}</Text>}
+      {...paginationConfig}
+    />
+  );
+}
+`,
+    );
+    mkdirSync(join(dir, 'src', 'helpers'), { recursive: true });
+    writeFileSync(
+      join(dir, 'src', 'helpers', 'list.ts'),
+      `export const paginationConfig = {
+  windowSize: 6,
+  removeClippedSubviews: true,
+  initialNumToRender: 8,
+};
+`,
+    );
+    writeFileSync(
+      join(dir, 'src', 'RestList.tsx'),
+      `import React from 'react';
+import { FlatList, Text } from 'react-native';
+
+export function RestList({ data, ...props }: { data: Array<{ id: string }> }) {
+  return (
+    <FlatList
+      data={data}
+      keyExtractor={(item) => item.id}
+      renderItem={({ item }) => <Text>{item.id}</Text>}
+      onEndReachedThreshold={0.4}
+      onEndReached={() => undefined}
+      ListFooterComponent={<Text>more</Text>}
+      {...props}
+    />
+  );
+}
+`,
+    );
+    writeFileSync(
+      join(dir, 'src', 'BareList.tsx'),
+      `import React from 'react';
+import { FlatList, Text } from 'react-native';
+
+export function BareList({ data }: { data: Array<{ id: string }> }) {
+  return (
+    <FlatList
+      data={data}
+      keyExtractor={(item) => item.id}
+      renderItem={({ item }) => <Text>{item.id}</Text>}
+      onEndReachedThreshold={0.4}
+      onEndReached={() => undefined}
+      ListFooterComponent={<Text>more</Text>}
+    />
+  );
+}
+`,
+    );
+    const result = analyzePerformance(dir);
+    const opts = result.findings.filter((item) => item.ruleId === 'perf-flatlist-opts');
+    assert.equal(opts.some((item) => item.file.includes('ImportedList')), false);
+    assert.equal(opts.some((item) => item.file.includes('LocalList')), false);
+    assert.equal(opts.some((item) => item.file.includes('AliasedList')), false);
+    assert.ok(opts.some((item) => item.file.includes('BareList')));
+    assert.ok(opts.some((item) => item.file.includes('RestList')));
   });
 });
 
@@ -355,10 +546,108 @@ describe('html and json reporters', () => {
     assert.match(html, /\/ 100/);
     assert.match(html, /click for details/);
     assert.match(html, /These cards are scores, not issue counts/);
+    assert.match(html, /\.js-unused-table th, \.js-unused-table td \{ overflow: hidden; \}/);
+    assert.match(html, /\.js-unused-table \.cell-name code, \.js-unused-table \.cell-path code \{/);
+    assert.doesNotMatch(html, /\.js-unused-table \.cell-name, \.js-unused-table \.cell-kind/);
     assert.doesNotMatch(html, /\d[\d,]* bytes/);
     const json = JSON.parse(toJson(analysis));
     assert.equal(json.overview.name, 'sample-rn-app');
     assert.ok(json.health.overall >= 0);
     assert.ok(Array.isArray(json.issues));
+  });
+
+  it('keeps IPA size findings on the iOS tab, not Android', async () => {
+    const analysis = await analyzeProject({ cwd: FIXTURE, silent: true });
+    analysis.issues.push(
+      {
+        id: 'android-native-large',
+        severity: 'warning',
+        title: 'Native libraries are large (app-release.aab)',
+        description: 'Native .so files occupy a substantial portion of this AAB.',
+        evidence: ['Total zip-entry size of native .so files: 21.8 MB'],
+        platform: 'android',
+        affected: 'app-release.aab',
+        recommendation: 'Review ABI configuration.',
+        confidence: 'measured',
+        category: 'size',
+      },
+      {
+        id: 'ios-frameworks-large',
+        severity: 'warning',
+        title: 'Embedded frameworks are large (UrjaMitraUserApp.ipa)',
+        description: 'Framework/XCFramework payloads measured from archive entries.',
+        evidence: ['Framework uncompressed total: 18.0 MB'],
+        platform: 'ios',
+        affected: 'UrjaMitraUserApp.ipa',
+        recommendation: 'Review unused pods/frameworks.',
+        confidence: 'measured',
+        category: 'size',
+      },
+      {
+        id: 'ios-ipa-not-download',
+        severity: 'info',
+        title: 'IPA/app size is not the App Store download size',
+        description: 'IPA/archive size is not the App Store download size.',
+        evidence: ['Archive size: 24.9 MB'],
+        platform: 'ios',
+        affected: 'UrjaMitraUserApp.ipa',
+        recommendation: 'Use App Store Connect file sizes.',
+        confidence: 'high',
+        category: 'size',
+      },
+    );
+    const html = renderHtml(analysis);
+    const androidHtml = html.slice(html.indexOf('id="android"'), html.indexOf('id="ios"'));
+    const iosHtml = html.slice(html.indexOf('id="ios"'), html.indexOf('id="deps"'));
+    assert.match(androidHtml, /Native libraries are large \(app-release\.aab\)/);
+    assert.doesNotMatch(androidHtml, /UrjaMitraUserApp\.ipa/);
+    assert.doesNotMatch(androidHtml, /Embedded frameworks are large/);
+    assert.doesNotMatch(androidHtml, /IPA\/app size is not the App Store download size/);
+    assert.match(iosHtml, /Embedded frameworks are large \(UrjaMitraUserApp\.ipa\)/);
+    assert.match(iosHtml, /IPA\/app size is not the App Store download size/);
+  });
+
+  it('hides the iOS tab on an Android-only analysis', async () => {
+    const analysis = await analyzeAndroidOnly({ cwd: FIXTURE, silent: true });
+    const html = renderHtml(analysis);
+    assert.equal(analysis.analyzedPlatform, 'android');
+    assert.match(html, /data-tab="android"/);
+    assert.doesNotMatch(html, /data-tab="ios"/);
+    assert.doesNotMatch(html, /<section class="panel" id="ios">/);
+    assert.doesNotMatch(html, />iOS detected</);
+    assert.doesNotMatch(html, /<h3>iOS<\/h3>/);
+  });
+
+  it('hides the Android tab on an iOS-only analysis', async () => {
+    const analysis = await analyzeIosOnly({ cwd: FIXTURE, silent: true });
+    const html = renderHtml(analysis);
+    assert.equal(analysis.analyzedPlatform, 'ios');
+    assert.match(html, /data-tab="ios"/);
+    assert.doesNotMatch(html, /data-tab="android"/);
+    assert.doesNotMatch(html, /<section class="panel" id="android">/);
+    assert.doesNotMatch(html, />Android detected</);
+    assert.doesNotMatch(html, /<h3>Android<\/h3>/);
+  });
+
+  it('wraps long unused JS names so they do not overflow into Kind', async () => {
+    const analysis = await analyzeProject({ cwd: FIXTURE, silent: true });
+    const longName = 'RegistrationPaymentTransactionItem.style.js';
+    analysis.jsUnused.unusedUnreachableModules.push({
+      name: longName,
+      kind: 'module',
+      file: 'src/role/um/components/registration/RegistrationPaymentTransactionItem.style.js',
+      line: 1,
+      inBundleGraph: false,
+      likelyInBytecode: false,
+      confidence: 'medium',
+      evidence: ['No app import reaches this file.'],
+      recommendation: 'Delete unused files after confirming they are not loaded dynamically.',
+    });
+    const html = renderHtml(analysis);
+    const unusedHtml = html.slice(html.indexOf('id="js-unused"'), html.indexOf('id="perf"'));
+    assert.match(unusedHtml, /RegistrationPaymentTransactionItem\.<wbr>style\.<wbr>js/);
+    assert.match(unusedHtml, /title="RegistrationPaymentTransactionItem\.style\.js"/);
+    assert.match(html, /overflow-wrap: anywhere/);
+    assert.match(html, /word-break: break-word/);
   });
 });

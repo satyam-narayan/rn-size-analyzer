@@ -82,12 +82,23 @@ function snippet(source: string, index: number): string {
   return line.trim().slice(0, 160);
 }
 
-function shouldSkipMatch(source: string, index: number, match: string): boolean {
+const FIREBASE_CLIENT_CONFIG = /(?:^|\/)(google-services\.json|GoogleService-Info[^/]*\.plist)$/i;
+
+const SCHEMA_OR_DTD_URL =
+  /schemas\.android\.com|www\.w3\.org|schemas\.microsoft\.com|xmlpull\.org|apple\.com\/dtds/i;
+
+function shouldSkipMatch(
+  source: string,
+  index: number,
+  match: string,
+  ruleId: string,
+  relativePath: string,
+): boolean {
   const line = source.split('\n')[lineNumber(source, index) - 1] ?? '';
-  if (/xmlns\s*=/.test(line)) return true;
-  if (/schemas\.android\.com|www\.w3\.org|schemas\.microsoft\.com|xmlpull\.org/i.test(match)) {
-    return true;
-  }
+  const posix = relativePath.replace(/\\/g, '/');
+  if (/xmlns\s*=/.test(line) || /<!DOCTYPE/i.test(line)) return true;
+  if (SCHEMA_OR_DTD_URL.test(match) || SCHEMA_OR_DTD_URL.test(line)) return true;
+  if (ruleId === 'sec-google-api-key' && FIREBASE_CLIENT_CONFIG.test(posix)) return true;
   return false;
 }
 
@@ -118,7 +129,7 @@ export function analyzeSecurity(root: string): SecurityAnalysis {
       rule.regex.lastIndex = 0;
       const matches = [...source.matchAll(rule.regex)].slice(0, 5);
       for (const match of matches) {
-        if (shouldSkipMatch(source, match.index ?? 0, match[0] ?? '')) continue;
+        if (shouldSkipMatch(source, match.index ?? 0, match[0] ?? '', rule.id, relative)) continue;
         findings.push({
           ruleId: rule.id,
           file: relative,

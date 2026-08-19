@@ -20,17 +20,22 @@ function section(title: string): void {
 
 export function printTerminal(analysis: ProjectAnalysis): void {
   const { overview, health, issues, android, ios, release } = analysis;
+  const analyzedPlatform = analysis.analyzedPlatform ?? 'all';
+  const showAndroid = analyzedPlatform !== 'ios';
+  const showIos = analyzedPlatform !== 'android';
   line(`${overview.name}  ·  RN ${overview.reactNativeVersion ?? 'unknown'}  ·  ${overview.kind}`);
-  line(
-    `Android: ${overview.androidDetected ? 'yes' : 'no'}  ·  iOS: ${overview.iosDetected ? 'yes' : 'no'}  ·  Hermes: ${
-      overview.hermesEnabled === undefined ? 'unknown' : overview.hermesEnabled
-    }  ·  New Arch: ${overview.newArchEnabled === undefined ? 'unknown' : overview.newArchEnabled}`,
-  );
+  const detectedBits = [
+    showAndroid ? `Android: ${overview.androidDetected ? 'yes' : 'no'}` : undefined,
+    showIos ? `iOS: ${overview.iosDetected ? 'yes' : 'no'}` : undefined,
+    `Hermes: ${overview.hermesEnabled === undefined ? 'unknown' : overview.hermesEnabled}`,
+    `New Arch: ${overview.newArchEnabled === undefined ? 'unknown' : overview.newArchEnabled}`,
+  ].filter(Boolean);
+  line(detectedBits.join('  ·  '));
   line(
     `Health ${health.overall}/100   size ${health.size}  deps ${health.dependencies}  assets ${health.assets}  perf ${health.performance}  security ${health.security}  build ${health.build}  release ${health.release}`,
   );
 
-  if (android.artifact) {
+  if (showAndroid && android.artifact) {
     section('Android artifact');
     line(`File: ${android.artifact.filePath}`);
     line(`${android.artifact.kind.toUpperCase()} on-disk size: ${formatBytesExact(android.artifact.archiveBytes)}  ← matches Finder`);
@@ -56,7 +61,7 @@ export function printTerminal(analysis: ProjectAnalysis): void {
       line(`  ${row.abi}: ${formatBytes(row.compressedBytes)} packed · ${formatBytes(row.uncompressedBytes)} uncompressed (${row.libraryCount} libs)`);
     }
     line(`ABIs in this AAB/APK: ${android.artifact.abis.join(', ') || 'none'}`);
-  } else if (android.detected) {
+  } else if (showAndroid && android.detected) {
     section('Android project');
     line(
       `compileSdk=${android.sdk?.compileSdk ?? '?'} targetSdk=${android.sdk?.targetSdk ?? '?'} minSdk=${android.sdk?.minSdk ?? '?'}`,
@@ -64,7 +69,7 @@ export function printTerminal(analysis: ProjectAnalysis): void {
     line(`Hermes=${android.build?.hermesEnabled ?? 'unknown'} minify=${android.build?.minifyEnabled ?? 'unknown'}`);
   }
 
-  if (ios.artifact) {
+  if (showIos && ios.artifact) {
     section('iOS artifact');
     line(`File: ${ios.artifact.filePath}`);
     line(`${ios.artifact.kind.toUpperCase()} on-disk size: ${formatBytesExact(ios.artifact.archiveBytes)}`);
@@ -72,7 +77,7 @@ export function printTerminal(analysis: ProjectAnalysis): void {
     line(`Frameworks: ${formatBytes(ios.artifact.frameworks.reduce((s, f) => s + f.bytes, 0))}`);
     line(`JS: ${ios.artifact.jsBundle ? formatBytes(ios.artifact.jsBundle.bytes) : 'not found'}`);
     line(ios.artifact.thinningNote);
-  } else if (ios.detected) {
+  } else if (showIos && ios.detected) {
     section('iOS project');
     line(`deploymentTarget=${ios.build?.deploymentTarget ?? '?'} Hermes=${ios.build?.hermesEnabled ?? 'unknown'}`);
     line(`Pods parsed: ${ios.pods.length}`);

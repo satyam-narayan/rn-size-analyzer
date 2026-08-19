@@ -1,12 +1,3 @@
 {
-  "android": {
-    "maxIncrease": "2MB",
-    "maxSize": "50MB"
-  },
-  "ios": {
-    "maxIncrease": "3MB"
-  },
-  "failOn": "error",
-  "ignore": [],
-  "rules": {}
+  "ignore": []
 }

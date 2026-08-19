@@ -194,6 +194,7 @@ export async function analyzeProject(options: AnalyzeOptions): Promise<ProjectAn
     ios,
     security,
     hermesEnabled: detected.overview.hermesEnabled,
+    platform,
   });
 
   const { recommendations, extraIssues } = buildRecommendations({
@@ -224,7 +225,7 @@ export async function analyzeProject(options: AnalyzeOptions): Promise<ProjectAn
       description: detected.invalidReason ?? 'React Native markers were weak or missing.',
       evidence: [`cwd=${cwd}`],
       platform: 'shared',
-      recommendation: 'Run the CLI from the React Native app root, or pass an .apk/.aab/.ipa path.',
+      recommendation: 'Run the CLI from the React Native app root with analyze, analyze android, or analyze ios.',
       confidence: 'medium',
       category: 'build',
     });
@@ -281,6 +282,7 @@ export async function analyzeProject(options: AnalyzeOptions): Promise<ProjectAn
 
   return {
     overview,
+    analyzedPlatform: platform,
     health: computeHealth(allIssues),
     issues: allIssues,
     recommendations,

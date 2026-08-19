@@ -256,7 +256,7 @@ function androidPanel(android: AndroidAnalysis): string {
     ? `${androidArtifactBreakdown(android.artifact)}`
     : callout(
         'No APK/AAB was provided',
-        'Project configuration is shown above. To measure packaged size, run:<br><code>npx rn-size-analyzer analyze android/app/build/outputs/bundle/release/app-release.aab</code>',
+        'Project configuration is shown above. Place a release AAB/APK under android/app/build/outputs (or dist/, releases/), then run <code>npx rn-size-analyzer</code> or <code>npx rn-size-analyzer android</code>.',
         'warn',
       );
 
@@ -296,7 +296,7 @@ function iosPanel(ios: IosAnalysis): string {
       ${callout('IPA size is not the App Store download size', esc(ios.artifact.thinningNote), 'info')}`
     : callout(
         'No IPA was provided',
-        'Project configuration is shown above. To measure packaged size, run:<br><code>npx rn-size-analyzer analyze MyApp.ipa</code>',
+        'Project configuration is shown above. Place a release IPA under ios/ (or dist/, releases/), then run <code>npx rn-size-analyzer</code> or <code>npx rn-size-analyzer ios</code>.',
         'warn',
       );
 
@@ -420,7 +420,7 @@ function unusedJsCard(jsUnused: JsUnusedAnalysis): string {
   const bytecodeRows = jsUnused.unusedInBytecode
     .map(
       (item) => `<tr data-filter-text="${esc(`${item.name} ${item.file} ${item.kind} bytecode likely`.toLowerCase())}" data-js-kind="${esc(item.kind)}" data-js-bundle="bytecode">
-        <td class="cell-name"><code>${esc(item.name)}</code></td>
+        <td class="cell-name"><code title="${esc(item.name)}">${breakable(item.name)}</code></td>
         <td class="cell-kind">${esc(item.kind)}</td>
         <td class="cell-path"><code>${breakable(`${item.file}:${item.line}`)}</code></td>
         <td class="cell-status">${pill('Likely in bytecode', 'warn')}</td>
@@ -430,7 +430,7 @@ function unusedJsCard(jsUnused: JsUnusedAnalysis): string {
   const unreachableRows = jsUnused.unusedUnreachableModules
     .map(
       (item) => `<tr data-filter-text="${esc(`${item.name} ${item.file} module unreached`.toLowerCase())}" data-js-kind="module" data-js-bundle="unreached">
-        <td class="cell-name"><code>${esc(item.name)}</code></td>
+        <td class="cell-name"><code title="${esc(item.name)}">${breakable(item.name)}</code></td>
         <td class="cell-kind">file</td>
         <td class="cell-path"><code>${breakable(item.file)}</code></td>
         <td class="cell-status">${pill('Not in JS bundle', 'muted')}</td>
@@ -485,11 +485,20 @@ export function renderHtml(analysis: ProjectAnalysis): string {
   const data = JSON.stringify(analysis).replace(/</g, '\\u003c');
   const { overview, health, issues, android, ios, release, dependencies, assets, recommendations, jsUnused } =
     analysis;
+  const analyzedPlatform = analysis.analyzedPlatform ?? 'all';
+  const showAndroid = analyzedPlatform !== 'ios';
+  const showIos = analyzedPlatform !== 'android';
+  const nativeTab = showAndroid ? 'android' : showIos ? 'ios' : 'overview';
+  const visibleIssues = issues.filter((item) => {
+    if (!showAndroid && item.platform === 'android') return false;
+    if (!showIos && item.platform === 'ios') return false;
+    return true;
+  });
 
-  const catCount = (category: Issue['category']) => issues.filter((item) => item.category === category).length;
+  const catCount = (category: Issue['category']) => visibleIssues.filter((item) => item.category === category).length;
   const counts = {
-    warning: issues.filter((item) => item.severity === 'warning' || item.severity === 'critical').length,
-    info: issues.filter((item) => item.severity === 'info').length,
+    warning: visibleIssues.filter((item) => item.severity === 'warning' || item.severity === 'critical').length,
+    info: visibleIssues.filter((item) => item.severity === 'info').length,
     perf: analysis.performance.findings.length,
     security: analysis.security.findings.length,
     size: catCount('size'),
@@ -499,15 +508,19 @@ export function renderHtml(analysis: ProjectAnalysis): string {
     release: catCount('release'),
   };
 
-  const topIssues = issues.filter((item) => item.severity !== 'passed').slice(0, 12);
+  const topIssues = visibleIssues.filter((item) => item.severity !== 'passed').slice(0, 12);
   const issueCards = topIssues.map(issueCard).join('\n');
-  const sizeIssues = issues.filter((item) => item.category === 'size');
-  const dependencyIssues = issues.filter((item) => item.category === 'dependencies');
-  const assetIssues = issues.filter((item) => item.category === 'assets');
-  const buildIssues = issues.filter((item) => item.category === 'build');
-  const perfIssues = issues.filter((item) => item.category === 'performance');
-  const securityIssues = issues.filter((item) => item.category === 'security');
-  const releaseIssues = issues.filter((item) => item.category === 'release');
+  const issuesFor = (category: Issue['category'], platform: Issue['platform']) =>
+    visibleIssues.filter((item) => item.category === category && item.platform === platform);
+  const androidSizeIssues = issuesFor('size', 'android');
+  const iosSizeIssues = issuesFor('size', 'ios');
+  const androidBuildIssues = issuesFor('build', 'android');
+  const iosBuildIssues = issuesFor('build', 'ios');
+  const dependencyIssues = visibleIssues.filter((item) => item.category === 'dependencies');
+  const assetIssues = visibleIssues.filter((item) => item.category === 'assets');
+  const perfIssues = visibleIssues.filter((item) => item.category === 'performance');
+  const securityIssues = visibleIssues.filter((item) => item.category === 'security');
+  const releaseIssues = visibleIssues.filter((item) => item.category === 'release');
   const recCards = recommendations
     .map(
       (item) => `<article class="issue">
@@ -535,8 +548,8 @@ export function renderHtml(analysis: ProjectAnalysis): string {
         <td>${esc(node.version ?? '—')}</td>
         <td>${esc(node.platforms.join(', ') || 'shared')}</td>
         <td>${node.native ? pill('Native', 'warn') : pill('JS', 'muted')}</td>
-        <td>${node.androidBytes !== undefined ? formatBytes(node.androidBytes) : '—'}</td>
-        <td>${node.iosBytes !== undefined ? formatBytes(node.iosBytes) : '—'}</td>
+        ${showAndroid ? `<td>${node.androidBytes !== undefined ? formatBytes(node.androidBytes) : '—'}</td>` : ''}
+        ${showIos ? `<td>${node.iosBytes !== undefined ? formatBytes(node.iosBytes) : '—'}</td>` : ''}
       </tr>`,
     )
     .join('');
@@ -587,7 +600,7 @@ export function renderHtml(analysis: ProjectAnalysis): string {
       </tbody></table>`)}`
     : callout(
         'No comparison in this run',
-        'Compare two builds with:<br><code>npx rn-size-analyzer compare old.aab new.aab</code>',
+        'This report is for the current project only. Place release AAB/APK and IPA files in the project so they are auto-detected, then run <code>npx rn-size-analyzer</code>.',
         'info',
       );
 
@@ -748,18 +761,21 @@ export function renderHtml(analysis: ProjectAnalysis): string {
     .list-scroll th, .list-scroll td { padding: 11px 18px; }
     .list-scroll td code { display: inline; max-width: none; overflow-wrap: anywhere; word-break: break-word; }
     .js-unused-table { table-layout: fixed; width: 100%; min-width: 760px; }
-    .js-unused-table th:nth-child(1) { width: 22%; }
-    .js-unused-table th:nth-child(2) { width: 12%; }
-    .js-unused-table th:nth-child(3) { width: 44%; }
+    .js-unused-table th, .js-unused-table td { overflow: hidden; }
+    .js-unused-table th:nth-child(1) { width: 26%; }
+    .js-unused-table th:nth-child(2) { width: 10%; }
+    .js-unused-table th:nth-child(3) { width: 42%; }
     .js-unused-table th:nth-child(4) { width: 22%; }
-    .js-unused-table td { vertical-align: middle; }
-    .js-unused-table .cell-name, .js-unused-table .cell-kind, .js-unused-table .cell-status { white-space: nowrap; }
-    .js-unused-table .cell-name code, .js-unused-table .cell-status .pill {
-      word-break: keep-all;
-      overflow-wrap: normal;
-      white-space: nowrap;
+    .js-unused-table td { vertical-align: top; }
+    .js-unused-table .cell-kind, .js-unused-table .cell-status { white-space: nowrap; }
+    .js-unused-table .cell-status .pill { white-space: nowrap; }
+    .js-unused-table .cell-name code, .js-unused-table .cell-path code {
+      display: block;
+      max-width: 100%;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+      white-space: normal;
     }
-    .js-unused-table .cell-path code { word-break: normal; overflow-wrap: anywhere; white-space: normal; }
     .list-scroll tbody tr:last-child td { border-bottom: 0; }
     .list-scroll tbody tr:hover { background: #f8fafc; }
     .pod-name { font-weight: 650; overflow-wrap: anywhere; word-break: break-word; }
@@ -804,8 +820,8 @@ export function renderHtml(analysis: ProjectAnalysis): string {
           ${pill(overview.kind, 'light')}
           ${pill(overview.packageManager, 'light')}
           ${pill(overview.nodeVersion ?? 'Node unknown', 'light')}
-          ${pill(overview.androidDetected ? 'Android detected' : 'No Android', overview.androidDetected ? 'ok' : 'warn')}
-          ${pill(overview.iosDetected ? 'iOS detected' : 'No iOS', overview.iosDetected ? 'ok' : 'warn')}
+          ${showAndroid ? pill(overview.androidDetected ? 'Android detected' : 'No Android', overview.androidDetected ? 'ok' : 'warn') : ''}
+          ${showIos ? pill(overview.iosDetected ? 'iOS detected' : 'No iOS', overview.iosDetected ? 'ok' : 'warn') : ''}
           ${pill('Hermes ' + display(overview.hermesEnabled, 'unknown'), overview.hermesEnabled ? 'ok' : 'muted')}
           ${pill('New Arch ' + display(overview.newArchEnabled, 'unknown'), overview.newArchEnabled ? 'ok' : 'muted')}
         </div>
@@ -815,25 +831,25 @@ export function renderHtml(analysis: ProjectAnalysis): string {
   </header>
   <nav>
     <button data-tab="overview" class="active">Overview</button>
-    <button data-tab="android">Android</button>
-    <button data-tab="ios">iOS</button>
+    ${showAndroid ? '<button data-tab="android">Android</button>' : ''}
+    ${showIos ? '<button data-tab="ios">iOS</button>' : ''}
     <button data-tab="deps">Dependencies (${dependencies.totalDirect})</button>
     <button data-tab="assets">Assets</button>
     <button data-tab="js-unused">JS unused (${(jsUnused.unusedInBytecode.length + jsUnused.unusedUnreachableModules.length) || 0})</button>
     <button data-tab="perf">Performance (${counts.perf})</button>
     <button data-tab="security">Security (${counts.security})</button>
     <button data-tab="release">Release</button>
-    <button data-tab="compare">Compare</button>
+    ${analysis.comparison ? '<button data-tab="compare">Compare</button>' : ''}
   </nav>
   <main>
     <section class="panel active" id="overview">
       <div class="score-grid">
-        ${scoreCard('Size', health.size, 'android', counts.size)}
+        ${scoreCard('Size', health.size, nativeTab, counts.size)}
         ${scoreCard('Dependencies', health.dependencies, 'deps', counts.dependencies)}
         ${scoreCard('Assets', health.assets, 'assets', counts.assets)}
         ${scoreCard('Performance', health.performance, 'perf', counts.perf)}
         ${scoreCard('Security', health.security, 'security', counts.security)}
-        ${scoreCard('Build', health.build, 'android', counts.build)}
+        ${scoreCard('Build', health.build, nativeTab, counts.build)}
         ${scoreCard('Release', health.release, 'release', counts.release)}
       </div>
       ${callout(
@@ -851,19 +867,24 @@ export function renderHtml(analysis: ProjectAnalysis): string {
       </div>
       ${recCards || callout('No native-size recommendations yet', 'Analyze an APK, AAB, or IPA to attribute native binaries to packages.', 'info')}
     </section>
-    <section class="panel" id="android">
+    ${showAndroid ? `<section class="panel" id="android">
       <div class="section-head">
         <h2>Android</h2>
         <p class="muted">Size and build details for the Android project and the packaged AAB/APK. Size score starts at 100 and drops when native libraries, ABIs, or archive findings are flagged. Build score uses Gradle/project issues such as missing config.</p>
       </div>
-      ${scoreFindingsBlock('Findings counted in Size score', sizeIssues)}
-      ${scoreFindingsBlock('Findings counted in Build score', buildIssues)}
+      ${scoreFindingsBlock('Findings counted in Size score', androidSizeIssues)}
+      ${scoreFindingsBlock('Findings counted in Build score', androidBuildIssues)}
       <div class="card">${androidPanel(android)}</div>
-    </section>
-    <section class="panel" id="ios">
-      <div class="section-head"><h2>iOS</h2><p class="muted">Xcode / CocoaPods configuration and optional IPA breakdown.</p></div>
+    </section>` : ''}
+    ${showIos ? `<section class="panel" id="ios">
+      <div class="section-head">
+        <h2>iOS</h2>
+        <p class="muted">Xcode / CocoaPods configuration and the packaged IPA/.app. Size score findings for frameworks and archive size stay here. Build score uses Xcode/Pods issues.</p>
+      </div>
+      ${scoreFindingsBlock('Findings counted in Size score', iosSizeIssues)}
+      ${scoreFindingsBlock('Findings counted in Build score', iosBuildIssues)}
       <div class="card">${iosPanel(ios)}</div>
-    </section>
+    </section>` : ''}
     <section class="panel" id="deps">
       <div class="section-head">
         <h2>Dependencies</h2>
@@ -878,7 +899,7 @@ export function renderHtml(analysis: ProjectAnalysis): string {
       </div>
       ${callout('Native sizes are estimates', 'Android/iOS bytes are attributed from binary names when possible. If a cell is empty, the tool could not confidently attribute that binary.', 'info')}
       <div class="tree">${esc(graph)}</div>
-      ${tableWrap(`<table><thead><tr><th>Package</th><th>Version</th><th>Platforms</th><th>Type</th><th>Android</th><th>iOS</th></tr></thead><tbody>${depRows}</tbody></table>`)}
+      ${tableWrap(`<table><thead><tr><th>Package</th><th>Version</th><th>Platforms</th><th>Type</th>${showAndroid ? '<th>Android</th>' : ''}${showIos ? '<th>iOS</th>' : ''}</tr></thead><tbody>${depRows}</tbody></table>`)}
       <div id="dep-detail" class="muted" style="margin-top:12px">Click a package row for details.</div>
     </section>
     <section class="panel" id="assets">
@@ -950,18 +971,24 @@ export function renderHtml(analysis: ProjectAnalysis): string {
     <section class="panel" id="release">
       <div class="section-head">
         <h2>Release readiness <span class="release-badge ${esc(release.overall.replace(' ', '-'))}">${esc(release.overall)}</span></h2>
-        <p class="muted">Checklist for shipping Android and iOS. The Release score starts at 100 and drops when minify, signing, Hermes, or similar release settings look risky. This tool never changes Gradle or Pod files.</p>
+        <p class="muted">${
+          showAndroid && showIos
+            ? 'Checklist for shipping Android and iOS.'
+            : showAndroid
+              ? 'Checklist for shipping Android.'
+              : 'Checklist for shipping iOS.'
+        } The Release score starts at 100 and drops when minify, signing, Hermes, or similar release settings look risky. This tool never changes Gradle or Pod files.</p>
       </div>
       ${scoreFindingsBlock('Findings counted in Release score', releaseIssues)}
       <div class="split">
-        <div class="card"><h3>Android</h3>${checklist(release.android)}</div>
-        <div class="card"><h3>iOS</h3>${checklist(release.ios)}</div>
+        ${showAndroid ? `<div class="card"><h3>Android</h3>${checklist(release.android)}</div>` : ''}
+        ${showIos ? `<div class="card"><h3>iOS</h3>${checklist(release.ios)}</div>` : ''}
       </div>
     </section>
-    <section class="panel" id="compare">
+    ${analysis.comparison ? `<section class="panel" id="compare">
       <div class="section-head"><h2>Release comparison</h2></div>
       <div class="card">${comparison}</div>
-    </section>
+    </section>` : ''}
   </main>
   <script>
     const ANALYSIS = ${data};

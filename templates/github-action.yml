@@ -12,9 +12,7 @@ jobs:
         with:
           node-version: '20'
       - name: Analyze React Native size
-        run: npx rn-size-analyzer analyze --format json --out rn-size-report
-      - name: Check thresholds
-        run: npx rn-size-analyzer check --json
+        run: npx rn-size-analyzer --format json --out rn-size-report
       - uses: actions/upload-artifact@v4
         if: always()
         with:

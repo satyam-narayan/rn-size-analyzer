@@ -1,17 +1,37 @@
 {
   "name": "rn-size-analyzer",
-  "version": "0.1.0",
-  "description": "React Native project, build, and release size analyzer with a local HTML dashboard. Helps developers understand why Android/iOS apps are large, which dependencies and assets contribute, and what changed between releases.",
+  "version": "0.1.1",
+  "description": "Analyze React Native Android APK/AAB and iOS IPA size. Local HTML dashboard for native libraries, dependencies, assets, Hermes, and release config.",
   "keywords": [
     "react-native",
+    "react native",
+    "reactnative",
+    "react-native-cli",
+    "react-native-android",
+    "react-native-ios",
+    "react-native-size",
+    "apk",
+    "apk-size",
+    "apk-analyzer",
+    "aab",
+    "android-app-bundle",
+    "ipa",
+    "ipa-size",
+    "app-size",
+    "bundle-size",
+    "bundle-analyzer",
+    "size-analyzer",
+    "binary-size",
+    "mobile",
     "android",
     "ios",
-    "apk",
-    "aab",
-    "ipa",
-    "bundle-size",
-    "cli",
-    "ci"
+    "expo",
+    "hermes",
+    "metro",
+    "gradle",
+    "cocoapods",
+    "performance",
+    "cli"
   ],
   "license": "MIT",
   "author": "Satyam Narayan",
@@ -22,9 +42,6 @@
   "homepage": "https://github.com/satyam-narayan/rn-size-analyzer#readme",
   "bugs": {
     "url": "https://github.com/satyam-narayan/rn-size-analyzer/issues"
-  },
-  "bin": {
-    "rn-size-analyzer": "dist/cli/index.js"
   },
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -49,10 +66,12 @@
     "build": "tsc -p tsconfig.json",
     "clean": "rm -rf dist dist-test",
     "prepare": "npm run build",
+    "prepublishOnly": "npm test",
     "test": "npm run build && tsc -p tsconfig.test.json && node --test dist-test/tests/unit/*.test.js dist-test/tests/integration/*.test.js",
     "test:unit": "npm run build && tsc -p tsconfig.test.json && node --test dist-test/tests/unit/*.test.js",
     "test:integration": "npm run build && tsc -p tsconfig.test.json && node --test dist-test/tests/integration/*.test.js",
-    "cli": "node dist/cli/index.js"
+    "cli": "node dist/cli/index.js",
+    "analyze": "node dist/cli/index.js"
   },
   "dependencies": {
     "commander": "^12.1.0"

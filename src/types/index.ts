@@ -394,6 +394,7 @@ export interface ProjectOverview {
 
 export interface ProjectAnalysis {
   overview: ProjectOverview;
+  analyzedPlatform: 'android' | 'ios' | 'all';
   health: HealthScores;
   issues: Issue[];
   recommendations: Recommendation[];

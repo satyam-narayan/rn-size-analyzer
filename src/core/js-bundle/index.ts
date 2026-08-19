@@ -47,7 +47,7 @@ export function analyzeJsBundle(root: string): JsBundleAnalysis {
           description:
             'Without a release artifact or prebundled file, JavaScript size cannot be measured. Metro source maps are not parsed in this run.',
           recommendation:
-            'Pass a release .aab/.apk/.ipa or place a built bundle in the project to measure JS size.',
+            'Place a release AAB/APK or IPA in the project (auto-detected) to measure JS size.',
           confidence: 'high',
           category: 'js-bundle',
           id: 'js-bundle-missing',

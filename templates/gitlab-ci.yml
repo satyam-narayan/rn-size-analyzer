@@ -1,8 +1,7 @@
 rn-size-check:
   image: node:20
   script:
-    - npx rn-size-analyzer analyze --format json --out rn-size-report
-    - npx rn-size-analyzer check --json
+    - npx rn-size-analyzer --format json --out rn-size-report
   artifacts:
     when: always
     paths:

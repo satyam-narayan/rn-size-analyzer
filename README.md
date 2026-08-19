@@ -1,19 +1,40 @@
 # rn-size-analyzer
 
-React Native project, build, and release analysis for Android and iOS.
+React Native APK, AAB, and IPA size analyzer with a local HTML dashboard.
 
-`rn-size-analyzer` is **not** only an APK/AAB size reporter. It inspects the React Native project, native configuration, dependencies, assets, optional build artifacts (APK/AAB/IPA), and static performance/security signals, then writes a **local one-page HTML dashboard**.
+`rn-size-analyzer` inspects the React Native project, native configuration, dependencies, assets, optional build artifacts (APK/AAB/IPA), and static performance/security signals, then writes a **local one-page HTML dashboard**.
 
-Install / run:
+Install the package **`rn-size-analyzer`**, then run it with npm or Yarn from the React Native app root.
+
+```bash
+npm install -D rn-size-analyzer
+yarn add -D rn-size-analyzer
+```
+
+Direct (no scripts needed):
 
 ```bash
 npx rn-size-analyzer
+yarn rn-size-analyzer
+
+npx rn-size-analyzer android
+yarn rn-size-analyzer android
+
+npx rn-size-analyzer ios
+yarn rn-size-analyzer ios
 ```
 
-or:
+Or add scripts, then:
 
 ```bash
-npx rn-size-analyzer analyze
+npm run analyze
+yarn analyze
+
+npm run analyze:android
+yarn analyze:android
+
+npm run analyze:ios
+yarn analyze:ios
 ```
 
 Report:
@@ -35,7 +56,7 @@ The tool helps you answer:
 1. Why the Android/iOS app is large
 2. Which dependencies contribute to size
 3. Which assets/resources contribute to size
-4. What changed between releases
+4. What to review before a release
 5. What can potentially be optimized
 6. Whether release/build configuration looks risky
 7. Android- and iOS-specific issues
@@ -53,56 +74,98 @@ The analyzer **does not invent measurements**. Estimates are labeled. Play Store
 
 ```bash
 npm install -D rn-size-analyzer
-# or
-npx rn-size-analyzer
+yarn add -D rn-size-analyzer
 ```
 
 Requires Node.js 18.18+.
+
+### Run directly (no scripts)
+
+```bash
+npx rn-size-analyzer
+yarn rn-size-analyzer
+
+npx rn-size-analyzer android
+yarn rn-size-analyzer android
+
+npx rn-size-analyzer ios
+yarn rn-size-analyzer ios
+```
+
+### Or add scripts
+
+Add this to the app `package.json` so `npm run analyze` and `yarn analyze` work:
+
+```json
+{
+  "scripts": {
+    "analyze": "rn-size-analyzer",
+    "analyze:android": "rn-size-analyzer android",
+    "analyze:ios": "rn-size-analyzer ios"
+  }
+}
+```
+
+Then:
+
+```bash
+npm run analyze
+yarn analyze
+
+npm run analyze:android
+yarn analyze:android
+
+npm run analyze:ios
+yarn analyze:ios
+```
 
 ---
 
 ## Quick start
 
-From a React Native app root:
+From a React Native app root, after install:
 
 ```bash
 npx rn-size-analyzer
-# same as:
-npx rn-size-analyzer analyze
+yarn rn-size-analyzer
 ```
 
-That analyzes **both Android and iOS**. If a release AAB/APK or IPA is already on disk (for example `android/app/build/outputs/bundle/release/app-release.aab`), it is included automatically. If no artifact is found, the tool still analyzes project config (Gradle, Pods, dependencies, assets).
+If you added the scripts above:
+
+```bash
+npm run analyze
+yarn analyze
+```
+
+That analyzes **both Android and iOS**. If a release AAB/APK or IPA is already on disk (for example `android/app/build/outputs/bundle/release/app-release.aab` or `ios/MyApp.ipa`), it is included automatically. If no artifact is found, the tool still analyzes project config (Gradle, Pods, dependencies, assets).
 
 One platform only:
 
 ```bash
 npx rn-size-analyzer android
+yarn rn-size-analyzer android
+
 npx rn-size-analyzer ios
-# aliases also supported:
-npx rn-size-analyzer analyze android
-npx rn-size-analyzer analyze ios
+yarn rn-size-analyzer ios
 ```
 
-Analyze a specific file (still analyzes the other platform on `analyze`):
+Or with scripts:
 
 ```bash
-npx rn-size-analyzer analyze app-release.aab
-npx rn-size-analyzer analyze MyApp.ipa
-npx rn-size-analyzer android app-release.aab
-npx rn-size-analyzer ios MyApp.ipa
+npm run analyze:android
+yarn analyze:android
+
+npm run analyze:ios
+yarn analyze:ios
 ```
 
-If you are running from a local cloned library build directly:
-
-```bash
-node /absolute/path/to/rn-size-analyzer/dist/cli/index.js analyze ios
-node /absolute/path/to/rn-size-analyzer/dist/cli/index.js analyze android
-```
+Do not pass an APK, AAB, or IPA path. Place those files in the project and they are auto-detected.
 
 JSON for CI:
 
 ```bash
-npx rn-size-analyzer analyze --format json
+npx rn-size-analyzer --format json
+yarn rn-size-analyzer --format json
 ```
 
 ---
@@ -111,14 +174,9 @@ npx rn-size-analyzer analyze --format json
 
 | Command | Purpose |
 | --- | --- |
-| `rn-size-analyzer` / `analyze` | Analyze Android **and** iOS; auto-detect AAB/APK and IPA |
-| `analyze android` | Android-only alias (same behavior as `android`) |
-| `analyze ios` | iOS-only alias (same behavior as `ios`) |
-| `analyze <file>` | Use that artifact, and still analyze the other platform if present |
-| `android` | Android only; auto-detect AAB/APK if no path is given |
-| `ios` | iOS only; auto-detect IPA if no path is given |
-| `compare <old> <new>` | Compare two artifacts |
-| `check` | CI mode, non-zero exit on thresholds |
+| `rn-size-analyzer` | Analyze Android **and** iOS; auto-detect AAB/APK and IPA |
+| `rn-size-analyzer android` | Android only |
+| `rn-size-analyzer ios` | iOS only |
 | `--version` / `--help` | Version and help |
 
 Global flags:
@@ -138,8 +196,6 @@ Global flags:
 The HTML report is self-contained (inline CSS/JS) and works without a server.
 
 Open `rn-size-report/index.html`.
-
-**Dashboard screenshot placeholder:** run the CLI against a project, then capture `rn-size-report/index.html` (Overview, health scores, and Top issues).
 
 The overview includes:
 
@@ -238,7 +294,7 @@ Reports largest files, duplicate **content** (SHA-256), large fonts, and conserv
 
 ## JS bundle
 
-If a packaged bundle is found in the tree or inside an artifact, its **file size** is reported. Hermes is inferred only from obvious filenames (`.hbc`). Per-module breakdown from source maps is **not** implemented in v0.1 (detected maps are noted as future work).
+If a packaged bundle is found in the tree or inside an artifact, its **file size** is reported. Hermes is inferred only from obvious filenames (`.hbc`). Per-module breakdown from source maps is **not** implemented yet (detected maps are noted as future work).
 
 ---
 
@@ -249,13 +305,18 @@ Not a runtime profiler.
 Performance rules (conservative):
 
 - `FlatList` without a nearby `keyExtractor`
-- Optional list virtualization props missing
+- Optional list virtualization props missing (`windowSize`, `removeClippedSubviews`, `getItemLayout`). Writing them on the tag or spreading any object that defines those keys both count. The object name is not used as a signal.
 - Many `console.log` calls in one file
 
 Security rules (pattern-based):
 
 - AWS key / Google API key / PEM private key shapes
 - `http://` literals, localhost, staging-like hosts
+
+Known non-issues are skipped (they are not measured as secrets):
+
+- Firebase client keys in `google-services.json` / `GoogleService-Info.plist` (expected public project identifiers; restrict them in Google Cloud Console)
+- XML/plist DTD and schema URLs, including Apple `Info.plist` `DOCTYPE` (`http://www.apple.com/DTDs/...`)
 
 Uncertain matches are titled **Potential secret detected**, not “secret exposed”.
 
@@ -269,32 +330,41 @@ The tool **never** modifies Gradle or CocoaPods configuration.
 
 ---
 
-## Compare and CI
+## CI
 
 ```bash
-npx rn-size-analyzer compare old.aab new.aab
-npx rn-size-analyzer check --max-increase 2MB
-npx rn-size-analyzer check --json
+npx rn-size-analyzer --format json
+yarn rn-size-analyzer --format json
+
+npx rn-size-analyzer android --format json
+yarn rn-size-analyzer android --format json
+
+npx rn-size-analyzer ios --format json
+yarn rn-size-analyzer ios --format json
 ```
 
-`check` compares the current artifact to `rn-size-report/baseline.json` or `--baseline`.
+Or with scripts:
 
-Example failure:
+```bash
+npm run analyze -- --format json
+yarn analyze --format json
 
-```text
-❌ BUILD FAILED
-App size increased by 8.4 MB
-Allowed increase: 2 MB
+npm run analyze:android -- --format json
+yarn analyze:android --format json
+
+npm run analyze:ios -- --format json
+yarn analyze:ios --format json
 ```
+
+JSON is written to `./rn-size-report/report.json`.
 
 Exit codes:
 
 | Code | Meaning |
 | --- | --- |
 | 0 | pass |
-| 1 | threshold exceeded |
 | 2 | analyzer error |
-| 3 | invalid project/build |
+| 3 | invalid project or unknown argument |
 
 ### Configuration
 
@@ -302,15 +372,11 @@ Exit codes:
 
 ```json
 {
-  "android": { "maxIncrease": "2MB", "maxSize": "50MB" },
-  "ios": { "maxIncrease": "3MB" },
-  "failOn": "error",
-  "ignore": [],
-  "rules": {}
+  "ignore": []
 }
 ```
 
-`failOn`: `critical` | `error` | `warning` | `never`.
+`ignore` is a list of issue ids to hide from the report.
 
 GitHub Actions and GitLab CI templates live in `templates/`.
 
@@ -332,7 +398,7 @@ const analysis = await analyzeProject({ cwd: process.cwd(), silent: true });
 - Does not query Play Console or App Store Connect.
 - Device-specific sizes are heuristics unless you provide a device APK.
 - Native→npm attribution is name-based and may be wrong.
-- Unused asset detection is intentionally weak in v0.1.
+- Unused asset detection is intentionally conservative.
 - Source-map module breakdown is not implemented.
 - Does not automatically change project files.
 
