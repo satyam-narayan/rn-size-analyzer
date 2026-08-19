@@ -11,30 +11,17 @@ npm install -D rn-size-analyzer
 yarn add -D rn-size-analyzer
 ```
 
-Direct (no scripts needed):
+Then run (`npx` for npm, `yarn exec` for Yarn):
 
 ```bash
 npx rn-size-analyzer
-yarn rn-size-analyzer
+yarn exec rn-size-analyzer
 
 npx rn-size-analyzer android
-yarn rn-size-analyzer android
+yarn exec rn-size-analyzer android
 
 npx rn-size-analyzer ios
-yarn rn-size-analyzer ios
-```
-
-Or add scripts, then:
-
-```bash
-npm run analyze
-yarn analyze
-
-npm run analyze:android
-yarn analyze:android
-
-npm run analyze:ios
-yarn analyze:ios
+yarn exec rn-size-analyzer ios
 ```
 
 Report:
@@ -79,17 +66,17 @@ yarn add -D rn-size-analyzer
 
 Requires Node.js 18.18+.
 
-### Run directly (no scripts)
+### After install
 
 ```bash
 npx rn-size-analyzer
-yarn rn-size-analyzer
+yarn exec rn-size-analyzer
 
 npx rn-size-analyzer android
-yarn rn-size-analyzer android
+yarn exec rn-size-analyzer android
 
 npx rn-size-analyzer ios
-yarn rn-size-analyzer ios
+yarn exec rn-size-analyzer ios
 ```
 
 ### Or add scripts
@@ -127,7 +114,7 @@ From a React Native app root, after install:
 
 ```bash
 npx rn-size-analyzer
-yarn rn-size-analyzer
+yarn exec rn-size-analyzer
 ```
 
 If you added the scripts above:
@@ -143,10 +130,10 @@ One platform only:
 
 ```bash
 npx rn-size-analyzer android
-yarn rn-size-analyzer android
+yarn exec rn-size-analyzer android
 
 npx rn-size-analyzer ios
-yarn rn-size-analyzer ios
+yarn exec rn-size-analyzer ios
 ```
 
 Or with scripts:
@@ -165,7 +152,7 @@ JSON for CI:
 
 ```bash
 npx rn-size-analyzer --format json
-yarn rn-size-analyzer --format json
+yarn exec rn-size-analyzer --format json
 ```
 
 ---
@@ -334,13 +321,13 @@ The tool **never** modifies Gradle or CocoaPods configuration.
 
 ```bash
 npx rn-size-analyzer --format json
-yarn rn-size-analyzer --format json
+yarn exec rn-size-analyzer --format json
 
 npx rn-size-analyzer android --format json
-yarn rn-size-analyzer android --format json
+yarn exec rn-size-analyzer android --format json
 
 npx rn-size-analyzer ios --format json
-yarn rn-size-analyzer ios --format json
+yarn exec rn-size-analyzer ios --format json
 ```
 
 Or with scripts:

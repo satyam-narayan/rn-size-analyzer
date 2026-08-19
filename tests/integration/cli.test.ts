@@ -21,7 +21,7 @@ describe('CLI', () => {
   it('prints version', () => {
     const result = run(['--version']);
     assert.equal(result.status, 0);
-    assert.match(result.stdout, /0\.1\.1/);
+    assert.match(result.stdout, /0\.1\.2/);
   });
 
   it('prints help', () => {
